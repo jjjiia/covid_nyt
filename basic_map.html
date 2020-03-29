@@ -52,11 +52,16 @@
         
         
         function formatByFips(data){
+            console.log(data)
             var formatted = {}
             for(var i in data){
                 var fips = data[i].fips
-                formatted["_"+fips]=data[i]
+                var date = data[i].date
+                if(date == "2020-03-27"){
+                    formatted["_"+fips]=data[i]
+                }
             }
+            console.log(formatted)
             return formatted
         }
         
@@ -74,8 +79,9 @@
                 .attr("fill", "none")
                 .attr("stroke", "#aaaaaa")
                 .attr("stroke-width",.5)
+          
             
-            var rScale = d3.scaleLinear().domain([1,2000]).range([1,10])
+            var rScale = d3.scaleLinear().domain([1,2000]).range([1,20])
             
             svg.selectAll("circle")
             .data(centroids)
@@ -90,6 +96,7 @@
                 return cy
             })
             .attr("r",function(d,i){
+                //return 5
                 var geoid = d.properties["GEO_ID"]
                 var fips = geoid.split("US")[1]
 
@@ -110,6 +117,12 @@
                 var county = d.properties.NAME
                 var geoid = d.properties["GEO_ID"]
                 var fips = geoid.split("US")[1]
+                
+                if(fips == "72137"){
+                    county = "All Puerto Rico"
+                }
+
+
                 var cases = data["_"+fips].cases
                 var deaths = data["_"+fips].deaths
                 var displayText = "County: "+county+"<br>Cases:"+cases+"<br>Deaths:"+deaths
