@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="../favicon.ico" rel="shortcut icon" type="image/x-icon" />
+    <title>basic basemap</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+  
+    
+    <style>
+      
+    </style>
+</head>
+<body>
+    
+</div>
+		<script type="text/javascript"> 
+       //set up svg, nothing new here
+        var width = window.innerWidth
+        var height = window.innerHeight
+        var svg = d3.select("body")
+            .append("svg")
+            .attr("width",width)
+            .attr("height", height);           
+
+        //we need a data file, and a geopath file
+        var dataPath = "covid-19-data-master/us-counties.csv";//these are some park events with coordinates from your colleague
+        var geoCentroids= "county_centroids.geojson";
+        var geoPath = "county_outlines.geojson";//this is a geojson, which is json format of outlines for nyc
+
+        //promise allows us to load many files, and only excutes the code inside it once the files have all loaded
+        //before we used d3.csv to load 1 csv file and .then to excute code once its been loaded
+        Promise.all([d3.json(geoPath),d3.json(geoCentroids), d3.csv(dataPath)])//here we use d3.json to load the json data, and d3.csv to load the csv data
+        .then(function(data) {//.then is the same as before, we are just saying wait till loading is done, then do this.
+            var geo = data[0];// data in blue in the line above is the result of the promise, so the first item is the geo
+            var centroids = data[1];//and the second is the place markers
+            var data = data[2]
+            //console.log(data)//try uncommenting and seeing what data is at this point to get a better idea
+            
+            var formattedData = formatByFips(data)
+            drawOutline(geo,centroids.features,formattedData) //call the draw outline function from below 
+        });
+        function formatByFips(data){
+            var formatted = {}
+            for(var i in data){
+                var fips = data[i].fips
+                formatted["_"+fips]=data[i]
+            }
+            return formatted
+        }
+        
+        
+        
+        function drawOutline(geo,centroids,data){
+            var padding = 50
+            var projection = d3.geoAlbers()
+                    .fitExtent([[padding,padding],[width-padding,height-padding]],geo)
+
+            var path = d3.geoPath().projection(projection);
+
+            svg.append("path")
+                .attr("d", path(geo))
+                .attr("fill", "none")
+                .attr("stroke", "#aaaaaa")
+                .attr("stroke-width",.5)
+            
+            var rScale = d3.scaleLinear().domain([0,1200]).range([1,15])
+            
+            svg.selectAll("circle")
+            .data(centroids)
+            .enter()
+            .append("circle")
+            .attr("cx",function(d,i){
+                var cx = projection(d.geometry.coordinates)[0]
+                return cx
+            })
+            .attr("cy",function(d,i){
+                var cy = projection(d.geometry.coordinates)[1]
+                return cy
+            })
+            .attr("r",function(d,i){
+                var geoid = d.properties["GEO_ID"]
+                var fips = geoid.split("US")[1]
+
+                if(data["_"+fips] != undefined){
+                    var value = data["_"+fips].cases
+                    return rScale(value)
+                }else{
+                    return 0
+                }
+            })
+            .attr("fill-opacity",0.1)
+            .attr("fill","red")
+            .attr("stroke-width",.5)
+            .attr("stroke","red")
+        }
+        </script>
+        
+</body>
+</html>
