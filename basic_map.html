@@ -13,62 +13,124 @@
         #countyInfo{
             padding:30px;
             position:absolute;
-            left:0px;
+            right:0px;
             top:0px;
+        }
+        .inset{
+            border:1px solid black;
+            width:150px;
+            height:150px;
+            margin:20px;
+            background-color:rgba(255,255,255,.7);
+        }
+        svg{
+            position:absolute;
+            
+        }
+        #hawaii{
+            height:300px;
+        }
+        #panel{
+            position:absolute;
+            top:0px;
+            left:0px;
+        }
+        .subtitle{
+            padding:10px;
+            position:absolute;
         }
     </style>
 </head>
 <body>
     <div id="countyInfo">info</div>
-    <div id="map"></div>
-    <div>
-</div>
+    <div id="mainland"></div>
+    <div id = "panel">
+        <div id="alaska" class="inset"><span class="subtitle">Alaska</span></div>
+       
+        <div id="hawaii" class="inset"><span class="subtitle">Hawaii</span></div>
+      
+        <div id="puertoRico" class="inset"><span class="subtitle">Puerto Rico</span></div>
+        
+        <div id="guam" class="inset"><span class="subtitle">Guam</span></div>
+    </div>
+
 		<script type="text/javascript"> 
        //set up svg, nothing new here
-        var width = window.innerWidth-20
-        var height = window.innerHeight-20
-        var svg = d3.select("#map")
-            .append("svg")
-            .attr("width",width)
-            .attr("height", height);           
-
+        d3.select("#mainland").style("width",window.innerWidth+"px").style("height",window.innerHeight+"px")
         //we need a data file, and a geopath file
-        var dataPath = "covid-19-data-master/us-counties.csv";//these are some park events with coordinates from your colleague
-        var geoCentroids= "county_centroids.geojson";
-        var geoPath = "county_outlines.geojson";//this is a geojson, which is json format of outlines for nyc
-
+        var dataPath = d3.csv("covid-19-data-master/us-counties.csv");//these are some park events with coordinates from your colleague
+        var geoCentroids= d3.json("county_centroids.geojson");
+        var geoPath = d3.json("mainland.geojson");//this is a geojson, which is json format of outlines for nyc
+        var hawaii = d3.json("hawaii.geojson")
+        var alaska = d3.json("alaska.geojson")
+        var guam = d3.json("guam.geojson")
+        var puertoRico = d3.json("puertoRico.geojson")
+ 
         //promise allows us to load many files, and only excutes the code inside it once the files have all loaded
         //before we used d3.csv to load 1 csv file and .then to excute code once its been loaded
-        Promise.all([d3.json(geoPath),d3.json(geoCentroids), d3.csv(dataPath)])//here we use d3.json to load the json data, and d3.csv to load the csv data
+        Promise.all([geoPath,geoCentroids,dataPath, hawaii, alaska, guam, puertoRico])//here we use d3.json to load the json data, and d3.csv to load the csv data
         .then(function(data) {//.then is the same as before, we are just saying wait till loading is done, then do this.
-            var geo = data[0];// data in blue in the line above is the result of the promise, so the first item is the geo
-            var centroids = data[1];//and the second is the place markers
-            var data = data[2]
-            //console.log(data)//try uncommenting and seeing what data is at this point to get a better idea
+            var mainland = data[0];// data in blue in the line above is the result of the promise, so the first item is the geo
+            var mainlandCentroids = data[1];//and the second is the place markers
+            var dataset = data[2]
+            var hawaii = data[3]
+            var alaska = data[4]
+            var guam = data[5]
+            var puertoRico = data[6]            
+            var formattedData = formatByFips(dataset)
             
-            var formattedData = formatByFips(data)
-            drawOutline(geo,centroids.features,formattedData) //call the draw outline function from below 
+            drawMap(mainland,mainlandCentroids.features,formattedData["Mainland"],"mainland",80) //call the draw outline function from below 
+           
+            drawMap(hawaii,mainlandCentroids.features,formattedData["Hawaii"],"hawaii",5) //call the draw outline function from below 
+            drawMap(alaska,mainlandCentroids.features,formattedData["Alaska"],"alaska",5) //call the draw outline function from below 
+            drawMap(puertoRico,mainlandCentroids.features,formattedData["Puerto Rico"],"puertoRico",5) //call the draw outline function from below 
+            drawMap(guam,mainlandCentroids.features,formattedData["Guam"],"guam",5) //call the draw outline function from below 
+
+            d3.select("#puertoRico").append("div").style("position","absolute").style("margin","40px").style("color","red")
+            .html(formatInsetDisplay(formattedData["Puerto Rico"]))
+            
+            d3.select("#guam").append("div").style("position","absolute").style("margin","40px").style("color","red")
+            .html(formatInsetDisplay(formattedData["Guam"]))
         });
-        
+        function formatInsetDisplay(data){
+            return "Cases: "+data.cases+"<br>Deaths: "+data.deaths
+        }
         
         function formatByFips(data){
-            console.log(data)
-            var formatted = {}
+            var latestDate = data[data.length-1].date
+            var formatted = {"Hawaii":{},"Alaska":{},"Mainland":{},"Guam":{},"Puerto Rico":{}}
             for(var i in data){
                 var fips = data[i].fips
                 var date = data[i].date
-                if(date == "2020-03-27"){
-                    formatted["_"+fips]=data[i]
+                var state = data[i].state
+                
+                if(date == latestDate){                    
+                    if(state == "Hawaii"){
+                        formatted["Hawaii"]["_"+fips]=data[i]
+                    }else if(state == "Alaska"){
+                        formatted["Alaska"]["_"+fips]=data[i]
+                    }else if(state == "Puerto Rico"){
+                        formatted["Puerto Rico"]=data[i]
+                    }else if(state == "Guam"){
+                        formatted["Guam"]=data[i]
+                    }else{
+                        formatted["Mainland"]["_"+fips]=data[i]
+                    }
                 }
             }
-            console.log(formatted)
             return formatted
+            
         }
         
         
-        
-        function drawOutline(geo,centroids,data){
-            var padding = 50
+        function drawMap(geo,centroids,data,divName,padding){
+            var width = d3.select("#"+divName).style("width").replace("px","")
+            var height = d3.select("#"+divName).style("height").replace("px","")
+            var svg = d3.select("#"+divName)
+                .append("svg")
+                .attr("width",width)
+                .attr("height", height);  
+                
             var projection = d3.geoAlbers()
                     .fitExtent([[padding,padding],[width-padding,height-padding]],geo)
 
@@ -76,17 +138,18 @@
 
             svg.append("path")
                 .attr("d", path(geo))
-                .attr("fill", "none")
+                .attr("fill", "#dddddd")
                 .attr("stroke", "#aaaaaa")
                 .attr("stroke-width",.5)
           
             
-            var rScale = d3.scaleLinear().domain([1,2000]).range([1,20])
+            var rScale = d3.scaleLinear().domain([1,2000]).range([2,20])
             
-            svg.selectAll("circle")
+            svg.selectAll("."+divName)
             .data(centroids)
             .enter()
             .append("circle")
+            .attr("class",divName)
             .attr("cx",function(d,i){
                 var cx = projection(d.geometry.coordinates)[0]
                 return cx
@@ -113,21 +176,16 @@
             .attr("stroke","red")
             .attr("cursor","pointer")
             .on('mouseover',function(d){
-                console.log(d)
                 var county = d.properties.NAME
                 var geoid = d.properties["GEO_ID"]
                 var fips = geoid.split("US")[1]
-                
-                if(fips == "72137"){
-                    county = "All Puerto Rico"
-                }
-
+                var state = d.properties.state
 
                 var cases = data["_"+fips].cases
                 var deaths = data["_"+fips].deaths
                 var displayText = "County: "+county+"<br>Cases:"+cases+"<br>Deaths:"+deaths
                 d3.select("#countyInfo").html(displayText)
-                d3.select(this).attr("fill-opacity",1)
+                d3.select(this).attr("fill-opacity",.5)
             })
             .on('mouseout',function(d){
                 d3.select(this).attr("fill-opacity",.1)

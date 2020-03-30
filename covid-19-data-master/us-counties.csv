@@ -15396,7 +15396,7 @@ date,county,state,fips,cases,deaths
 2020-03-27,Wayne,Pennsylvania,42127,6,0
 2020-03-27,Westmoreland,Pennsylvania,42129,30,0
 2020-03-27,York,Pennsylvania,42133,29,0
-2020-03-27,Unknown,Puerto Rico,72137,79,3
+2020-03-27,Unknown,Puerto Rico,,79,3
 2020-03-27,Bristol,Rhode Island,44001,5,0
 2020-03-27,Kent,Rhode Island,44003,7,0
 2020-03-27,Newport,Rhode Island,44005,8,0
