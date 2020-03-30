@@ -14,8 +14,16 @@
             padding:30px;
             position:absolute;
             right:0px;
+            top:30px;
+            text-align:right;
+        }
+        #date{
+            padding:30px;
+            position:absolute;
+            right:0px;
             top:0px;
         }
+        
         .inset{
             border:1px solid black;
             width:150px;
@@ -42,6 +50,7 @@
     </style>
 </head>
 <body>
+    <div id="date">date</div>
     <div id="countyInfo">info</div>
     <div id="mainland"></div>
     <div id = "panel">
@@ -98,6 +107,7 @@
         
         function formatByFips(data){
             var latestDate = data[data.length-1].date
+            d3.select("#date").html("Showing data for "+latestDate)
             var formatted = {"Hawaii":{},"Alaska":{},"Mainland":{},"Guam":{},"Puerto Rico":{}}
             for(var i in data){
                 var fips = data[i].fips
