@@ -51,6 +51,7 @@
 </head>
 <body>
     <div id="date">date</div>
+    <div id="key"></div>
     <div id="countyInfo">info</div>
     <div id="mainland"></div>
     <div id = "panel">
@@ -67,13 +68,19 @@
        //set up svg, nothing new here
         d3.select("#mainland").style("width",window.innerWidth+"px").style("height",window.innerHeight+"px")
         //we need a data file, and a geopath file
-        var dataPath = d3.csv("covid-19-data-master/us-counties.csv");//these are some park events with coordinates from your colleague
+       // var dataPath = d3.csv("covid-19-data-master/us-counties.csv");
+       var dataPath = d3.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
         var geoCentroids= d3.json("county_centroids.geojson");
         var geoPath = d3.json("mainland.geojson");//this is a geojson, which is json format of outlines for nyc
         var hawaii = d3.json("hawaii.geojson")
         var alaska = d3.json("alaska.geojson")
         var guam = d3.json("guam.geojson")
         var puertoRico = d3.json("puertoRico.geojson")
+        var maxCases = 0
+        var rScale = null
+        var mainlandProjection
+ 
+        
  
         //promise allows us to load many files, and only excutes the code inside it once the files have all loaded
         //before we used d3.csv to load 1 csv file and .then to excute code once its been loaded
@@ -87,8 +94,40 @@
             var guam = data[5]
             var puertoRico = data[6]            
             var formattedData = formatByFips(dataset)
+            console.log(formattedData)
+            maxCases = parseInt(formattedData.max.cases)
+            rScale = d3.scaleLinear().domain([1,maxCases]).range([2,40])
+            
+            
+          /*
+            var keySvg = d3.select("#key").append("svg").attr("width",200).attr("height",200)
+                      keySvg.append("circle").attr("cx",20).attr("cy",20).attr("r",rScale(maxCases))*/
+          
             
             drawMap(mainland,mainlandCentroids.features,formattedData["Mainland"],"mainland",80) //call the draw outline function from below 
+           
+           var nyc = [-73.992760,40.678405]
+            var nycCases = formattedData["New York City"].cases
+            d3.select("#mainland svg").append("circle")
+            .attr("cx",mainlandProjection(nyc)[0])
+            .attr("cy",mainlandProjection(nyc)[1])
+            .attr("r",rScale(nycCases))
+            .attr("fill-opacity",0.1)
+            .attr("fill","red")
+            .attr("stroke-width",.5)
+            .attr("stroke","red")
+            .attr("cursor","pointer")
+            .on('mouseover',function(){
+                var nycData = formattedData
+                var displayText = "County: All New York City Counties"+"<br>Cases:"+nycCases+"<br>Deaths:"+formattedData["New York City"].deaths
+                d3.select("#countyInfo").html(displayText)
+                d3.select(this).attr("fill-opacity",.5)
+            })
+            .on('mouseout',function(d){
+                d3.select(this).attr("fill-opacity",.1)
+                d3.select("#countyInfo").html("")
+            })
+
            
             drawMap(hawaii,mainlandCentroids.features,formattedData["Hawaii"],"hawaii",5) //call the draw outline function from below 
             drawMap(alaska,mainlandCentroids.features,formattedData["Alaska"],"alaska",5) //call the draw outline function from below 
@@ -106,6 +145,9 @@
         }
         
         function formatByFips(data){
+            var max = 0
+            var min = 999
+            
             var latestDate = data[data.length-1].date
             d3.select("#date").html("Showing data for "+latestDate)
             var formatted = {"Hawaii":{},"Alaska":{},"Mainland":{},"Guam":{},"Puerto Rico":{}}
@@ -113,8 +155,17 @@
                 var fips = data[i].fips
                 var date = data[i].date
                 var state = data[i].state
-                
-                if(date == latestDate){                    
+                var count = parseInt(data[i].cases)                
+                if(date == latestDate){     
+                    if(count>max){
+                        max = count
+                        formatted["max"]=data[i]
+                    }
+                    else if(count<min){
+                        min = count
+                        formatted["min"]=data[i]
+                    }
+                              
                     if(state == "Hawaii"){
                         formatted["Hawaii"]["_"+fips]=data[i]
                     }else if(state == "Alaska"){
@@ -123,7 +174,10 @@
                         formatted["Puerto Rico"]=data[i]
                     }else if(state == "Guam"){
                         formatted["Guam"]=data[i]
-                    }else{
+                    }else if(data[i].county == "New York City"){
+                        formatted["New York City"]=data[i]
+                    }
+                    else{
                         formatted["Mainland"]["_"+fips]=data[i]
                     }
                 }
@@ -143,6 +197,9 @@
                 
             var projection = d3.geoAlbers()
                     .fitExtent([[padding,padding],[width-padding,height-padding]],geo)
+            if(divName == "mainland"){
+                mainlandProjection = projection
+            }
 
             var path = d3.geoPath().projection(projection);
 
@@ -153,7 +210,7 @@
                 .attr("stroke-width",.5)
           
             
-            var rScale = d3.scaleLinear().domain([1,2000]).range([2,20])
+           // var rScale = d3.scaleLinear().domain([1,maxCases]).range([2,100])
             
             svg.selectAll("."+divName)
             .data(centroids)
